@@ -15,6 +15,12 @@ TIMES = {"day": "낮", "night": "밤", "late": "새벽"}
 COMPANIONS = {"alone": "혼자", "together": "다른 사람과 함께"}
 RUNTIME_LIMITS = {100: "100분 이하", 120: "120분 이하", None: "제한 없음"}
 WEIGHTS = {"mood": 50, "time": 20, "company": 20, "runtime": 10}
+FIT_LABELS = {
+    "genre": "장르", "mood": "분위기", "focus": "몰입도", "pace": "전개 속도",
+    "runtime": "러닝타임", "time": "시간대", "company": "관람 형태",
+    "similarity": "작품 유사성", "excluded": "제외 조건 충족",
+}
+PACING_LABELS = {"slow": "느긋한 전개", "medium": "중간 속도", "fast": "빠른 전개"}
 
 
 @dataclass(frozen=True)
@@ -23,12 +29,47 @@ class ViewingPreferences:
     time: str
     company: str
     max_runtime: int | None
+    mood_tags: tuple[str, ...] = ()
+    avoid_tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mood not in MOODS or self.time not in TIMES or self.company not in COMPANIONS:
             raise ValueError("알 수 없는 관람 조건입니다.")
         if self.max_runtime not in RUNTIME_LIMITS:
             raise ValueError("알 수 없는 러닝타임 제한입니다.")
+
+
+@dataclass(frozen=True)
+class FilmPreferences:
+    genres: tuple[str, ...] = ()
+    avoid_genres: tuple[str, ...] = ()
+    moods: tuple[str, ...] = ()
+    avoid_moods: tuple[str, ...] = ()
+    focus: tuple[str, ...] = ()
+    avoid_focus: tuple[str, ...] = ()
+    pace: tuple[str, ...] = ()
+    avoid_pace: tuple[str, ...] = ()
+    max_runtime: int | None = None
+    time: str | None = None
+    company: str | None = None
+    reference_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.time is not None and self.time not in TIMES:
+            raise ValueError("지원하지 않는 관람 시간대입니다.")
+        if self.company is not None and self.company not in COMPANIONS:
+            raise ValueError("지원하지 않는 관람 형태입니다.")
+        if self.max_runtime is not None and (type(self.max_runtime) is not int or not 1 <= self.max_runtime <= 600):
+            raise ValueError("러닝타임 상한은 1~600분이어야 합니다.")
+
+    @property
+    def has_exclusions(self) -> bool:
+        return any((self.avoid_genres, self.avoid_moods, self.avoid_focus, self.avoid_pace))
+
+    @property
+    def has_conditions(self) -> bool:
+        return bool(self.has_exclusions or any((self.genres, self.moods, self.focus,
+                    self.pace, self.max_runtime, self.time, self.company, self.reference_id)))
 
 
 @dataclass(frozen=True)
@@ -46,14 +87,40 @@ class Movie:
     company_fit: Mapping[str, int]
     international_title: str = ""
     local_backdrop: str = ""
+    tmdb_id: int | None = None
+    mood_tags: tuple[str, ...] = ()
+    visual_style: str = ""
+    pacing: str = ""
+    emotional_tone: str = ""
+    curator_note: str = ""
+    synopsis: str = ""
+    focus_tags: tuple[str, ...] = ()
+    pace_tags: tuple[str, ...] = ()
+    backdrop_override: str = ""
+    genre_tags: frozenset[str] = frozenset()
+    complexity: int = 3
+    emotional_intensity: int = 3
+    tone: str = ""
+    themes: tuple[str, ...] = ()
+    similar_movies: tuple[str, ...] = ()
+    countries: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"tt[0-9]{7,}", self.imdb_id):
             raise ValueError(f"{self.title}의 IMDb ID를 확인하세요.")
         if self.local_backdrop and self.local_backdrop != f"{self.imdb_id}.jpg":
             raise ValueError(f"{self.title}의 로컬 스틸컷 파일명을 확인하세요.")
+        if self.tmdb_id is not None and (type(self.tmdb_id) is not int or self.tmdb_id < 1):
+            raise ValueError(f"{self.title}의 TMDB ID를 확인하세요.")
+        if self.backdrop_override and not re.fullmatch(
+            r"/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)", self.backdrop_override, re.I
+        ):
+            raise ValueError(f"{self.title}의 TMDB 수동 배경 경로를 확인하세요.")
         if type(self.runtime) is not int or self.runtime <= 0:
             raise ValueError(f"{self.title}의 러닝타임을 확인하세요.")
+        if any(type(value) is not int or not 1 <= value <= 5
+               for value in (self.complexity, self.emotional_intensity)):
+            raise ValueError(f"{self.title}의 집중도와 감정 강도는 1~5여야 합니다.")
         for field, options in (
             ("mood_fit", MOODS), ("time_fit", TIMES), ("company_fit", COMPANIONS)
         ):
@@ -64,6 +131,17 @@ class Movie:
                 raise ValueError(f"{self.title}의 {field}는 항목별 0~5점이어야 합니다.")
             object.__setattr__(self, field, MappingProxyType(scores))
         object.__setattr__(self, "genres", tuple(self.genres))
+        object.__setattr__(self, "mood_tags", tuple(self.mood_tags))
+        object.__setattr__(self, "focus_tags", tuple(self.focus_tags))
+        object.__setattr__(self, "pace_tags", tuple(self.pace_tags))
+        tags = frozenset(self.genres) | frozenset(self.genre_tags)
+        object.__setattr__(self, "genre_tags", tags | {"코미디"} if "블랙 코미디" in tags else tags)
+        for field in ("themes", "similar_movies", "countries"):
+            object.__setattr__(self, field, tuple(getattr(self, field)))
+
+    @property
+    def pacing_label(self) -> str:
+        return PACING_LABELS.get(self.pacing, self.pacing)
 
     @property
     def display_original(self) -> str:
@@ -83,7 +161,24 @@ class ScoreBreakdown:
 
 
 @dataclass(frozen=True)
+class FitComponent:
+    kind: str
+    points: int
+    maximum: int
+    evidence: str
+
+
+@dataclass(frozen=True)
+class PreferenceScore:
+    components: tuple[FitComponent, ...]
+
+    @property
+    def total(self) -> int:
+        return sum(item.points for item in self.components)
+
+
+@dataclass(frozen=True)
 class RecommendationResult:
     movie: Movie
-    scores: ScoreBreakdown
+    scores: ScoreBreakdown | PreferenceScore
     reason: str

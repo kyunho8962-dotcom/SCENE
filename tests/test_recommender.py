@@ -14,9 +14,9 @@ def database():
     return MovieDatabase()
 
 
-def test_catalog_contains_24_unique_real_entries_and_protects_curation(database):
-    assert len(database.movies) == 24
-    assert len({movie.imdb_id for movie in database.movies}) == 24
+def test_catalog_contains_unique_real_entries_and_protects_curation(database):
+    assert len(database.movies) == 120
+    assert len({movie.imdb_id for movie in database.movies}) == 120
     with pytest.raises(TypeError):
         database.movies[0].mood_fit["relax"] = 5
 
@@ -27,7 +27,7 @@ def test_weighted_score_and_explanation_use_the_selected_values(database):
     assert result.movie.title == "이웃집 토토로"
     assert (result.scores.mood, result.scores.time, result.scores.company, result.scores.runtime) == (50, 20, 20, 10)
     assert result.scores.total == 100
-    for text in (result.movie.atmosphere, "편안하고 싶다", "낮에 함께", "86분", "100분 이내"):
+    for text in (result.movie.curator_note, "편안하고 싶다", "낮에 함께", "50/50점"):
         assert text in result.reason
 
 
