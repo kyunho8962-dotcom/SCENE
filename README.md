@@ -138,7 +138,6 @@ Python 3.11 이상과 Streamlit으로 구성했습니다. 영화 데이터는 JS
 | `validate_catalog.py` | JSON 구조, 중복, 수치 범위, 유사 작품 참조, 장르 분포 검사 |
 | `tests/` | 추천, 매체 응답 처리, Streamlit 조작 테스트 |
 | `benchmark.py`, `benchmark.cpp` | Python 문장 추천 측정 및 기존 고정 배점 경로의 C++ 비교 |
-| `PRESENTATION_GUIDE.md` | 발표 순서, Mermaid 클래스 다이어그램과 흐름도, 측정 결과 |
 
 Python은 인공지능학과에서 배우는 언어를 실제 프로젝트에 적용하고 싶어 선택했습니다. 표준 라이브러리로 JSON을 읽어 데이터 클래스로 표현할 수 있고, Streamlit에서 같은 언어로 입력과 결과를 빠르게 연결할 수 있습니다. C++ 벤치마크는 순위 계산 비용을 비교하는 데 사용했습니다.
 
@@ -165,7 +164,7 @@ g++ -O2 -std=c++17 benchmark.cpp -o benchmark_cpp
 python benchmark.py --cpp ./benchmark_cpp
 ```
 
-Python 벤치마크는 여덟 문장을 각 125회 분석하고 추천합니다. `--baseline 기존카탈로그.json`을 주면 같은 코드로 확장 전후를 측정합니다. 선택 사항인 C++ 비교는 기존 고정 배점 호환 경로의 순위와 점수를 대조합니다. [발표 준비 가이드](PRESENTATION_GUIDE.md) · [여덟 요청의 품질 평가](RECOMMENDATION_QA.md)
+Python 벤치마크는 여덟 문장을 각 125회 분석하고 추천합니다. `--baseline 기존카탈로그.json`을 주면 같은 코드로 확장 전후를 측정합니다. 선택 사항인 C++ 비교는 기존 고정 배점 호환 경로의 순위와 점수를 대조합니다. [여덟 요청의 품질 평가](RECOMMENDATION_QA.md)
 
 ## 데이터 및 이미지 출처
 

@@ -9,3 +9,4 @@ __pycache__/
 *.exe
 *.obj
 /benchmark_cpp
+/PRESENTATION_GUIDE.md
